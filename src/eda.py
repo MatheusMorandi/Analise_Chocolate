@@ -44,25 +44,37 @@ ds.head()
 
 # %%
 
-ds["Valor"] = ds["Valor"].str.strip()
+def formata_dataset(dados):
 
-ds[["Unit", "Valor($)"]] = ds["Valor"].str.split("$", expand = True)
+    dados["Valor"] = dados["Valor"].str.strip()
 
-ds["Valor($)"] = ds["Valor($)"].str.replace(",", "").astype("int")
+    dados[["Unit", "Valor($)"]] = dados["Valor"].str.split("$", expand = True)
 
-ds.drop(["Unit", "Valor"], axis = 1, inplace = True)
+    dados["Valor($)"] = dados["Valor($)"].str.replace(",", "").astype("int")
 
-# %%
+    dados.drop(["Unit", "Valor"], axis = 1, inplace = True)
 
-ds["Data"] = pd.to_datetime(ds["Data"])
+    ds["Data"] = pd.to_datetime(ds["Data"])
 
-ds.info()
+    ds["Ano"] = ds["Data"].dt.year()
 
-# %%
+    ds["Mes"] = ds["Data"].dt.month_name()
 
-ds["Ano"] = ds["Data"].dt.year
+    ordem_meses = ["January", 
+                "February", 
+                "March", 
+                "April", 
+                "May", 
+                "June",
+                "July", 
+                "August"]
 
-ds["Mes"] = ds["Data"].dt.month_name()
+    ds["Mes"] = pd.Categorical(
+                    ds["Mes"], 
+                    categories = ordem_meses, 
+                    ordered = True)
+
+    return dados
 
 # %%
 
@@ -98,25 +110,71 @@ def caixas_totais(dados):
 
 # %%
 
-vnd_pais = ds.groupby("Pais", as_index = False)["Valor($)"].sum().sort_values(by = "Valor($)",ascending = False)
+def grafico_pais(dados):
 
-vnd_pais["Valor($)"] = round((vnd_pais["Valor($)"]/1000000), 2)
+    vnd_pais = dados.groupby("Pais", as_index = False)["Valor($)"].sum().sort_values(by = "Valor($)",ascending = False)
 
-grfc_pais = px.bar(
-    data_frame = vnd_pais,
-    x = "Valor($)",
-    y = "Pais",
-    color = "Pais",
-    color_discrete_sequence = px.colors.qualitative.Pastel)
+    vnd_pais["Valor($)"] = round((vnd_pais["Valor($)"]/1000000), 2)
 
-grfc_pais.update_layout(
-    title = "Vendas por Países em Milhões ($)",
-    template = "plotly",
-    margin = dict(l = 50, r = 50, b = 50, t = 50),
-    xaxis_title = "Valor das Vendas ($)",
-    yaxis_title = "",
-    showlegend = False)
+    grfc_pais = px.bar(
+        data_frame = vnd_pais,
+        x = "Valor($)",
+        y = "Pais",
+        text = "Valor($)",
+        color = "Pais",
+        color_discrete_sequence = px.colors.qualitative.Pastel)
 
-grfc_pais.show()
+    grfc_pais.update_traces(
+        textposition = "outside",
+        texttemplate = "$ %{x:.2f}M") 
+
+    grfc_pais.update_layout(
+        title = "Faturamento por Países em Milhões ($)",
+        template = "plotly",
+        margin = dict(l = 50, r = 50, b = 50, t = 50),
+        xaxis_title = "",
+        yaxis_title = "",
+        showlegend = False,
+        xaxis_tickformat = ".1f",
+        xaxis_ticksuffix = "M",
+        xaxis = dict(range = [0, (vnd_pais["Valor($)"].max() * 1.5)]))
+
+    return grfc_pais
+
+# %%
+
+def grafico_mes(dados):
+
+    vnds_mes = dados.groupby("Mes", as_index = False)["Valor($)"].sum()
+
+    vnds_mes["Valor($)"] = vnds_mes["Valor($)"] / 1000
+
+    grfc_mes = px.bar(
+        data_frame = vnds_mes,
+        x = "Valor($)",
+        y = "Mes",
+        text = "Valor($)",
+        color = "Mes",
+        color_discrete_sequence = px.colors.qualitative.Pastel)
+
+    grfc_mes.update_traces(
+        textposition = "outside",
+        texttemplate = "$ %{x:.0f}k",
+        cliponaxis = False) 
+
+    grfc_mes.update_layout(
+        title = "Faturamento por Mensal ($)",
+        template = "plotly",
+        margin = dict(l = 50, r = 50, b = 50, t = 50),
+        xaxis_title = "",
+        yaxis_title = "",
+        showlegend = False,
+        xaxis_tickformat = "0.f",
+        xaxis_ticksuffix = "k",
+        xaxis = dict(range = [0, 1000],
+                    dtick = 200))
+
+    return grfc_mes
+
 
 # %%
